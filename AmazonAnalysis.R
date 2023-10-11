@@ -77,14 +77,15 @@ my_mod <- logistic_reg(mixture=tune(), penalty=tune()) %>%
 my_recipe <- recipe(ACTION~., data=amazonTrain) %>%
   step_mutate_at(all_numeric_predictors(), fn=factor) %>%
   step_other(all_nominal_predictors(), threshold=0.001) %>%
-  step_lencode_bayes(all_nominal_predictors(), outcome = vars(ACTION))
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
 
 # prep <- prep(my_recipe)
 # baked <- bake(prep, new_data=amazonTest)
 
 amazon_workflow <- workflow() %>%
   add_recipe(my_recipe) %>%
-  add_model(my_mod)
+  add_model(my_mod) %>%
+  fit(data=amazonTrain)
 
 tuning_grid <- grid_regular(penalty(),
                             mixture(),
@@ -96,6 +97,8 @@ CV_results <- amazon_workflow %>%
             grid=tuning_grid,
             metrics=metric_set(roc_auc))
 
+
+
 # do any or call of these 
   # metric_set(roc_auc, f_meas, sens, recall, spec, 
     # precision, accuracy)
@@ -103,16 +106,12 @@ CV_results <- amazon_workflow %>%
 bestTune <- CV_results %>%
   select_best("roc_auc")
 
-final_wf <- 
-  preg_wf %>%
+final_wf <- preg_wf %>%
   finalize_workflow(bestTune) %>%
   fit(data=amazonTrain)
 
-final_wf %>%
-  predict(new_data=amazonTest, type="prob")
-
-# penalty first
-# mixture second
+# final_wf %>%
+#   predict(new_data=amazonTest, type="prob")
 
 amazon_predictions <- predict(final_wf,
                               new_data=amazonTest,
